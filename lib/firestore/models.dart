@@ -53,7 +53,7 @@ abstract class Reference {
   }
 }
 
-class CollectionReference extends Reference {
+class CollectionReference<T extends Object?> extends Reference {
   final FirestoreGateway gateway;
 
   /// Constructs a [CollectionReference] using [FirestoreGateway] and path.
@@ -102,7 +102,7 @@ class CollectionReference extends Reference {
   /// to the specified number of documents.
   QueryReference limit(int count) => QueryReference(gateway, path).limit(count);
 
-  DocumentReference document(String id) =>
+  DocumentReference<T> document(String id) =>
       DocumentReference(_gateway, '$path/$id');
 
   Future<Page<Document>> get(
@@ -116,7 +116,7 @@ class CollectionReference extends Reference {
       _gateway.createDocument(fullPath, null, _encodeMap(map));
 }
 
-class DocumentReference extends Reference {
+class DocumentReference<T extends Object?> extends Reference {
   DocumentReference(FirestoreGateway gateway, String path)
       : super(gateway, path) {
     if (fullPath.split('/').length % 2 == 0) {
@@ -370,3 +370,5 @@ class QueryReference extends Reference {
       ..compositeFilter = compositeFilter;
   }
 }
+
+// class Transaction {}

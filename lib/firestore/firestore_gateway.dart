@@ -1,12 +1,12 @@
 import 'dart:async';
 
+import 'package:grpc/grpc.dart';
 import 'package:firedart/generated/google/firestore/v1/common.pb.dart';
 import 'package:firedart/generated/google/firestore/v1/document.pb.dart' as fs;
 import 'package:firedart/generated/google/firestore/v1/firestore.pbgrpc.dart';
 import 'package:firedart/generated/google/firestore/v1/query.pb.dart';
-import 'package:grpc/grpc.dart';
 
-import '../firedart.dart';
+import '../auth/firebase_auth.dart';
 import 'models.dart';
 import 'token_authenticator.dart';
 
@@ -127,34 +127,50 @@ class FirestoreGateway {
   }
 
   Future<Document> createDocument(
-      String path, String? documentId, fs.Document document) async {
+    String path,
+    String? documentId,
+    fs.Document document,
+  ) async {
     var split = path.split('/');
     var parent = split.sublist(0, split.length - 1).join('/');
     var collectionId = split.last;
 
-    var request = CreateDocumentRequest()
-      ..parent = parent
-      ..collectionId = collectionId
-      ..documentId = documentId ?? ''
-      ..document = document;
+    var request = CreateDocumentRequest(
+      parent: parent,
+      collectionId: collectionId,
+      documentId: documentId ?? '',
+      document: document,
+    );
 
     var response =
         await _client.createDocument(request).catchError(_handleError);
     return Document(this, response);
   }
 
-  Future<Document> getDocument(path) async {
+  Future<Document> getDocument(
+    path, {
+    List<int>? txn,
+  }) async {
     var rawDocument = await _client
-        .getDocument(GetDocumentRequest()..name = path)
+        // .getDocument(GetDocumentRequest()..name = path)
+        .getDocument(GetDocumentRequest(
+          name: path,
+          transaction: txn,
+        ))
         .catchError(_handleError);
     return Document(this, rawDocument);
   }
 
   Future<void> updateDocument(
-      String path, fs.Document document, bool update) async {
+    String path,
+    fs.Document document,
+    bool update,
+  ) async {
     document.name = path;
 
-    var request = UpdateDocumentRequest()..document = document;
+    var request = UpdateDocumentRequest(
+      document: document,
+    );
 
     if (update) {
       var mask = DocumentMask();
@@ -190,15 +206,47 @@ class FirestoreGateway {
   }
 
   Future<List<Document>> runQuery(
-      StructuredQuery structuredQuery, String fullPath) async {
-    final runQuery = RunQueryRequest()
-      ..structuredQuery = structuredQuery
-      ..parent = fullPath.substring(0, fullPath.lastIndexOf('/'));
+    StructuredQuery structuredQuery,
+    String fullPath, {
+    List<int>? txn,
+    TransactionOptions? txnOptions,
+  }) async {
+    final runQuery = RunQueryRequest(
+      structuredQuery: structuredQuery,
+      parent: fullPath.substring(0, fullPath.lastIndexOf('/')),
+      transaction: txn,
+      newTransaction: txnOptions,
+    );
+
     final response = _client.runQuery(runQuery);
+
     return await response
         .where((event) => event.hasDocument())
         .map((event) => Document(this, event.document))
         .toList();
+  }
+
+  Future<List<int>> beginTransaction(TransactionOptions? options) async {
+    var resp = await _client.beginTransaction(
+      BeginTransactionRequest(
+        database: database,
+        options: options,
+      ),
+    );
+    return resp.transaction;
+  }
+
+  Future<List<int>> commit({
+    required List<int> txn,
+    required Iterable<Write> writes,
+  }) async {
+    var resp = await _client.commit(
+      CommitRequest(
+        database: database,
+        transaction: txn,
+        writes: writes,
+      ),
+    );
   }
 
   void _setupClient() {
