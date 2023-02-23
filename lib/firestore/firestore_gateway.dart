@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:firedart/generated/google/firestore/v1/write.pb.dart';
 import 'package:grpc/grpc.dart';
 import 'package:firedart/generated/google/firestore/v1/common.pb.dart';
 import 'package:firedart/generated/google/firestore/v1/document.pb.dart' as fs;
@@ -236,9 +237,10 @@ class FirestoreGateway {
     return resp.transaction;
   }
 
-  Future<List<int>> commit({
+  Future<List<WriteResult>> commit({
     required List<int> txn,
     required Iterable<Write> writes,
+    CallOptions? callOptions,
   }) async {
     var resp = await _client.commit(
       CommitRequest(
@@ -246,7 +248,12 @@ class FirestoreGateway {
         transaction: txn,
         writes: writes,
       ),
+      options: callOptions,
     );
+
+    // if(resp.writeResults)
+
+    return resp.writeResults;
   }
 
   void _setupClient() {

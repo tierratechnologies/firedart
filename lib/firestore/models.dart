@@ -251,9 +251,16 @@ class Page<T> extends ListBase<T> {
 class QueryReference extends Reference {
   final StructuredQuery _structuredQuery = StructuredQuery();
 
-  QueryReference(FirestoreGateway gateway, String path) : super(gateway, path) {
-    _structuredQuery.from
-        .add(StructuredQuery_CollectionSelector()..collectionId = id);
+  QueryReference(
+    FirestoreGateway gateway,
+    String path,
+  ) : super(gateway, path) {
+    _structuredQuery.from.add(
+      StructuredQuery_CollectionSelector(
+        collectionId: id,
+        allDescendants: null,
+      ),
+    );
   }
 
   QueryReference where(
@@ -335,24 +342,33 @@ class QueryReference extends Reference {
 
   Future<List<Document>> get() => _gateway.runQuery(_structuredQuery, fullPath);
 
-  void _addFilter(String fieldPath, dynamic value,
-      {StructuredQuery_FieldFilter_Operator? operator}) {
+  void _addFilter(
+    String fieldPath,
+    dynamic value, {
+    StructuredQuery_FieldFilter_Operator? operator,
+  }) {
     var queryFilter = StructuredQuery_Filter();
-    if (value == null || operator == null) {
-      var filter = StructuredQuery_UnaryFilter();
-      filter.op = StructuredQuery_UnaryFilter_Operator.IS_NULL;
-      filter.field_2 = StructuredQuery_FieldReference()..fieldPath = fieldPath;
 
+    if (value == null || operator == null) {
+      var filter = StructuredQuery_UnaryFilter(
+        op: StructuredQuery_UnaryFilter_Operator.IS_NULL,
+      );
+
+      filter.field_2 = StructuredQuery_FieldReference(
+        fieldPath: fieldPath,
+      );
       queryFilter.unaryFilter = filter;
     } else {
-      var filter = StructuredQuery_FieldFilter();
-      filter.op = operator;
-      filter.value = TypeUtil.encode(value);
+      var filter = StructuredQuery_FieldFilter(
+        op: operator,
+        value: TypeUtil.encode(value),
+      );
 
-      final fieldReference = StructuredQuery_FieldReference()
-        ..fieldPath = fieldPath;
+      final fieldReference = StructuredQuery_FieldReference(
+        fieldPath: fieldPath,
+      );
+
       filter.field_1 = fieldReference;
-
       queryFilter.fieldFilter = filter;
     }
 
@@ -361,14 +377,14 @@ class QueryReference extends Reference {
         _structuredQuery.where.hasCompositeFilter()) {
       compositeFilter = _structuredQuery.where.compositeFilter;
     } else {
-      compositeFilter = StructuredQuery_CompositeFilter()
-        ..op = StructuredQuery_CompositeFilter_Operator.AND;
+      compositeFilter = StructuredQuery_CompositeFilter(
+        op: StructuredQuery_CompositeFilter_Operator.AND,
+      );
     }
 
     compositeFilter.filters.add(queryFilter);
-    _structuredQuery.where = StructuredQuery_Filter()
-      ..compositeFilter = compositeFilter;
+    _structuredQuery.where = StructuredQuery_Filter(
+      compositeFilter: compositeFilter,
+    );
   }
 }
-
-// class Transaction {}
