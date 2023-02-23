@@ -6,28 +6,41 @@ import 'package:test/test.dart';
 import 'test_config.dart';
 
 Future main() async {
-  var tokenStore = VolatileStore();
-  var auth = FirebaseAuth(apiKey, tokenStore);
-  var firestore = Firestore(projectId, auth: auth);
-  await auth.signIn(email, password);
+  final tokenStore = VolatileStore();
+  final auth = FirebaseAuth(apiKey, tokenStore);
+  final firestore = Firestore(projectId, auth: auth);
+
+  var docRefs = <DocumentReference>[];
+
+  setUpAll(() async => await auth.signIn(email, password));
+
+  tearDown(() async {
+    if (docRefs.isNotEmpty) {
+      await Future.wait(docRefs.map((e) => e.delete()));
+      docRefs.clear();
+    }
+    return;
+  });
 
   test('Create reference', () async {
     // Ensure document exists
     var reference = firestore.document('test/reference');
     await reference.set({'field': 'test'});
 
+    docRefs.add(reference);
+
     var collectionReference = firestore.reference('test');
     expect(collectionReference.runtimeType, equals(CollectionReference));
     var documentReference = firestore.reference('test/types');
     expect(documentReference.runtimeType, equals(DocumentReference));
-
-    await reference.delete();
   });
 
   test('Get collection', () async {
     var reference = firestore.collection('test');
     var documents = await reference.get();
     expect(documents.isNotEmpty, true);
+
+    documents.map((element) => docRefs.add(element.reference));
   });
 
   test('Limit collection page size', () async {
@@ -35,6 +48,8 @@ Future main() async {
     var documents = await reference.get(pageSize: 1);
     expect(documents.length, 1);
     expect(documents.hasNextPage, isTrue);
+
+    documents.map((element) => docRefs.add(element.reference));
   });
 
   test('Get next collection page', () async {
@@ -45,6 +60,8 @@ Future main() async {
         pageSize: 1, nextPageToken: documents.nextPageToken);
     var second = documents[0];
     expect(first.id, isNot(second.id));
+
+    docRefs.addAll(documents.map((element) => element.reference));
   });
 
   test('Simple query', () async {
@@ -54,6 +71,8 @@ Future main() async {
         .where('test_field', isEqualTo: 'test_value')
         .get();
     expect(query.isNotEmpty, true);
+
+    docRefs.addAll(query.map((e) => e.reference));
   });
 
   test('Multiple query parameters', () async {
@@ -63,6 +82,8 @@ Future main() async {
         .where('test_field', isEqualTo: 42, isGreaterThan: 41, isLessThan: 43)
         .get();
     expect(query.isNotEmpty, true);
+
+    docRefs.addAll(query.map((e) => e.reference));
   });
 
   test('Add and delete collection document', () async {
