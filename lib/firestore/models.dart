@@ -388,3 +388,5 @@ class QueryReference extends Reference {
     );
   }
 }
+
+typedef Transaction = List<int>;

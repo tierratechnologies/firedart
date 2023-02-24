@@ -37,15 +37,21 @@ class _FirestoreGatewayStreamCache {
 
     _documentMap = <String, Document>{};
     _listenRequestStreamController = StreamController<ListenRequest>();
+
     _listenResponseStreamController =
         StreamController<ListenResponse>.broadcast(
             onListen: _handleListenOnResponseStream,
             onCancel: _handleCancelOnResponseStream);
+
     _listenResponseStreamController.addStream(client
-        .listen(_listenRequestStreamController!.stream,
-            options: CallOptions(
-                metadata: {'google-cloud-resource-prefix': database}))
+        .listen(
+          _listenRequestStreamController!.stream,
+          options: CallOptions(
+            metadata: {'google-cloud-resource-prefix': database},
+          ),
+        )
         .handleError(onError));
+
     _listenRequestStreamController!.add(request);
   }
 
@@ -81,25 +87,38 @@ class FirestoreGateway {
 
   late FirestoreClient _client;
 
-  FirestoreGateway(String projectId, {String? databaseId, this.auth})
-      : database =
+  FirestoreGateway(
+    String projectId, {
+    String? databaseId,
+    this.auth,
+  })  : database =
             'projects/$projectId/databases/${databaseId ?? '(default)'}/documents',
         _listenRequestStreamMap = <String, _FirestoreGatewayStreamCache>{} {
     _setupClient();
   }
 
   Future<Page<Document>> getCollection(
-      String path, int pageSize, String nextPageToken) async {
-    var request = ListDocumentsRequest()
-      ..parent = path.substring(0, path.lastIndexOf('/'))
-      ..collectionId = path.substring(path.lastIndexOf('/') + 1)
-      ..pageSize = pageSize
-      ..pageToken = nextPageToken;
+    String path,
+    int pageSize,
+    String nextPageToken,
+  ) async {
+    var request = ListDocumentsRequest(
+      parent: path.substring(0, path.lastIndexOf('/')),
+      collectionId: path.substring(path.lastIndexOf('/') + 1),
+      pageSize: pageSize,
+      pageToken: nextPageToken,
+    );
+
     var response =
         await _client.listDocuments(request).catchError(_handleError);
+
     var documents =
         response.documents.map((rawDocument) => Document(this, rawDocument));
-    return Page(documents, response.nextPageToken);
+
+    return Page(
+      documents,
+      response.nextPageToken,
+    );
   }
 
   Stream<List<Document>> streamCollection(String path) {
@@ -107,21 +126,31 @@ class FirestoreGateway {
       return _mapCollectionStream(_listenRequestStreamMap[path]!);
     }
 
-    var selector = StructuredQuery_CollectionSelector()
-      ..collectionId = path.substring(path.lastIndexOf('/') + 1);
+    var selector = StructuredQuery_CollectionSelector(
+      collectionId: path.substring(path.lastIndexOf('/') + 1),
+    );
+
     var query = StructuredQuery()..from.add(selector);
-    final queryTarget = Target_QueryTarget()
-      ..parent = path.substring(0, path.lastIndexOf('/'))
-      ..structuredQuery = query;
+
+    final queryTarget = Target_QueryTarget(
+      parent: path.substring(0, path.lastIndexOf('/')),
+      structuredQuery: query,
+    );
+
     final target = Target()..query = queryTarget;
-    final request = ListenRequest()
-      ..database = database
-      ..addTarget = target;
+
+    final request = ListenRequest(
+      database: database,
+      addTarget: target,
+    );
 
     final listenRequestStream = _FirestoreGatewayStreamCache(
-        onDone: _handleDone, userInfo: path, onError: _handleError);
-    _listenRequestStreamMap[path] = listenRequestStream;
+      onDone: _handleDone,
+      userInfo: path,
+      onError: _handleError,
+    );
 
+    _listenRequestStreamMap[path] = listenRequestStream;
     listenRequestStream.setListenRequest(request, _client, database);
 
     return _mapCollectionStream(listenRequestStream);
@@ -145,20 +174,21 @@ class FirestoreGateway {
 
     var response =
         await _client.createDocument(request).catchError(_handleError);
+
     return Document(this, response);
   }
 
   Future<Document> getDocument(
     path, {
-    List<int>? txn,
+    Transaction? txn,
   }) async {
     var rawDocument = await _client
-        // .getDocument(GetDocumentRequest()..name = path)
         .getDocument(GetDocumentRequest(
           name: path,
           transaction: txn,
         ))
         .catchError(_handleError);
+
     return Document(this, rawDocument);
   }
 
@@ -183,7 +213,11 @@ class FirestoreGateway {
   }
 
   Future<void> deleteDocument(String path) => _client
-      .deleteDocument(DeleteDocumentRequest()..name = path)
+      .deleteDocument(
+        DeleteDocumentRequest(
+          name: path,
+        ),
+      )
       .catchError(_handleError);
 
   Stream<Document?> streamDocument(String path) {
@@ -192,13 +226,16 @@ class FirestoreGateway {
     }
 
     final documentsTarget = Target_DocumentsTarget()..documents.add(path);
+
     final target = Target()..documents = documentsTarget;
+
     final request = ListenRequest()
       ..database = database
       ..addTarget = target;
 
     final listenRequestStream = _FirestoreGatewayStreamCache(
         onDone: _handleDone, userInfo: path, onError: _handleError);
+
     _listenRequestStreamMap[path] = listenRequestStream;
 
     listenRequestStream.setListenRequest(request, _client, database);
@@ -227,7 +264,7 @@ class FirestoreGateway {
         .toList();
   }
 
-  Future<List<int>> beginTransaction(TransactionOptions? options) async {
+  Future<Transaction> beginTransaction(TransactionOptions? options) async {
     var resp = await _client.beginTransaction(
       BeginTransactionRequest(
         database: database,
@@ -238,7 +275,7 @@ class FirestoreGateway {
   }
 
   Future<List<WriteResult>> commit({
-    required List<int> txn,
+    required Transaction txn,
     required Iterable<Write> writes,
     CallOptions? callOptions,
   }) async {
