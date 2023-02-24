@@ -38,15 +38,30 @@ class VerboseClient extends http.BaseClient {
 class KeyClient extends http.BaseClient {
   final http.Client client;
   final String apiKey;
+  final bool useEmulator;
+  final String? projectId; // used for Emulator only
 
-  KeyClient(this.client, this.apiKey);
+  KeyClient(
+    this.client,
+    this.apiKey, {
+    this.useEmulator = false,
+    this.projectId,
+  });
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) {
     if (!request.url.queryParameters.containsKey('key')) {
       var query = Map<String, String>.from(request.url.queryParameters)
         ..['key'] = apiKey;
-      var url = Uri.https(request.url.authority, request.url.path, query);
+
+      var url = !useEmulator
+          ? Uri.https(request.url.authority, request.url.path, query)
+          : Uri.http(
+              request.url.authority,
+              request.url.path.replaceFirst('{{project_id}}', projectId!),
+              query,
+            );
+
       request = http.Request(request.method, url)
         ..headers.addAll(request.headers)
         ..bodyBytes = (request as http.Request).bodyBytes;
@@ -59,7 +74,10 @@ class UserClient extends http.BaseClient {
   final KeyClient client;
   final TokenProvider tokenProvider;
 
-  UserClient(this.client, this.tokenProvider);
+  UserClient(
+    this.client,
+    this.tokenProvider,
+  );
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {

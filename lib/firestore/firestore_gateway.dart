@@ -8,6 +8,7 @@ import 'package:firedart/generated/google/firestore/v1/firestore.pbgrpc.dart';
 import 'package:firedart/generated/google/firestore/v1/query.pb.dart';
 
 import '../auth/firebase_auth.dart';
+import '../constants.dart';
 import 'models.dart';
 import 'token_authenticator.dart';
 
@@ -91,10 +92,11 @@ class FirestoreGateway {
     String projectId, {
     String? databaseId,
     this.auth,
+    bool useEmulator = false,
   })  : database =
             'projects/$projectId/databases/${databaseId ?? '(default)'}/documents',
         _listenRequestStreamMap = <String, _FirestoreGatewayStreamCache>{} {
-    _setupClient();
+    _setupClient(useEmulator);
   }
 
   Future<Page<Document>> getCollection(
@@ -308,10 +310,15 @@ class FirestoreGateway {
     return resp.writeResults;
   }
 
-  void _setupClient() {
+  void _setupClient([bool useEmulator = false]) {
     _listenRequestStreamMap.clear();
-    _client = FirestoreClient(ClientChannel('firestore.googleapis.com'),
-        options: TokenAuthenticator.from(auth)?.toCallOptions);
+    _client = FirestoreClient(
+      ClientChannel(
+        !useEmulator ? FIRESTORE_HOST_URI : EMULATORS_HOST_URI,
+        port: !useEmulator ? FIRESTORE_HOST_PORT : FIRESTORE_EMULATOR_HOST_PORT,
+      ),
+      options: TokenAuthenticator.from(auth)?.toCallOptions,
+    );
   }
 
   void _handleError(e) {

@@ -3,11 +3,23 @@ import 'dart:convert';
 import 'package:firedart/auth/client.dart';
 import 'package:firedart/auth/token_provider.dart';
 
+import '../constants.dart';
+
 class UserGateway {
   final UserClient _client;
+  final bool useEmulator;
+  String? projectId;
 
-  UserGateway(KeyClient client, TokenProvider tokenProvider)
-      : _client = UserClient(client, tokenProvider);
+  UserGateway(
+    KeyClient client,
+    TokenProvider tokenProvider, {
+    bool useEmulator = false,
+    String? projectId,
+  })  : useEmulator = useEmulator,
+        _client = UserClient(
+          client,
+          tokenProvider,
+        );
 
   Future<void> requestEmailVerification() =>
       _post('sendOobCode', {'requestType': 'VERIFY_EMAIL'});
@@ -37,8 +49,12 @@ class UserGateway {
 
   Future<Map<String, dynamic>> _post<T>(
       String method, Map<String, String> body) async {
-    var requestUrl =
-        'https://identitytoolkit.googleapis.com/v1/accounts:$method';
+    // var requestUrl =
+    //     'https://identitytoolkit.googleapis.com/v1/accounts:$method';
+
+    var requestUrl = !useEmulator
+        ? '$AUTH_HOST_URI:$method'
+        : '${AUTH_EMULATOR_HOST_URI.replaceFirst('{{project_id}}', projectId!)}:$method';
 
     var response = await _client.post(
       Uri.parse(requestUrl),

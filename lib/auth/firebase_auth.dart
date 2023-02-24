@@ -34,15 +34,55 @@ class FirebaseAuth {
   late AuthGateway _authGateway;
   late UserGateway _userGateway;
 
-  FirebaseAuth(this.apiKey, TokenStore tokenStore, {http.Client? httpClient})
-      : assert(apiKey.isNotEmpty),
+  FirebaseAuth(
+    this.apiKey,
+    TokenStore tokenStore, {
+    http.Client? httpClient,
+    bool useEmulator = false,
+    String? projectId, // used with emulator only
+  })  : assert(apiKey.isNotEmpty),
         httpClient = httpClient ?? http.Client() {
-    var keyClient = KeyClient(this.httpClient, apiKey);
-    tokenProvider = TokenProvider(keyClient, tokenStore);
+    // Build various clients
+    var keyClient = KeyClient(
+      this.httpClient,
+      apiKey,
+      useEmulator: useEmulator,
+      projectId: projectId,
+    );
 
-    _authGateway = AuthGateway(keyClient, tokenProvider);
-    _userGateway = UserGateway(keyClient, tokenProvider);
+    tokenProvider = TokenProvider(
+      keyClient,
+      tokenStore,
+    );
+
+    _authGateway = AuthGateway(
+      keyClient,
+      tokenProvider,
+      useEmulator: useEmulator,
+      projectId: projectId,
+    );
+
+    _userGateway = UserGateway(
+      keyClient,
+      tokenProvider,
+      useEmulator: useEmulator,
+      projectId: projectId,
+    );
   }
+
+  factory FirebaseAuth.useEmulator(
+    String apiKey,
+    TokenStore tokenStore, {
+    http.Client? httpClient,
+    required String projectId,
+  }) =>
+      FirebaseAuth(
+        apiKey,
+        tokenStore,
+        httpClient: VerboseClient(),
+        useEmulator: true,
+        projectId: projectId,
+      );
 
   bool get isSignedIn => tokenProvider.isSignedIn;
 

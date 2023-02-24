@@ -10,7 +10,11 @@ Future main() async {
 
   setUp(() {
     tokenStore = VolatileStore();
-    auth = FirebaseAuth(apiKey, tokenStore);
+    auth = FirebaseAuth(
+      apiKey,
+      tokenStore,
+      // projectId: 'logmate-development',
+    );
   });
 
   test('Sign In', () async {

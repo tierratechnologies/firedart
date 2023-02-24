@@ -7,7 +7,10 @@ class Firestore {
   /* Singleton interface */
   static Firestore? _instance;
 
-  static Firestore initialize(String projectId, {String? databaseId}) {
+  static Firestore initialize(
+    String projectId, {
+    String? databaseId,
+  }) {
     if (_instance != null) {
       throw Exception('Firestore instance was already initialized');
     }
@@ -32,10 +35,35 @@ class Firestore {
   /* Instance interface */
   final FirestoreGateway _gateway;
 
-  Firestore(String projectId, {String? databaseId, FirebaseAuth? auth})
-      : _gateway =
-            FirestoreGateway(projectId, databaseId: databaseId, auth: auth),
+  Firestore(
+    String projectId, {
+    String? databaseId,
+    FirebaseAuth? auth,
+    FirestoreGateway? gateway,
+  })  : _gateway = gateway ??
+            FirestoreGateway(
+              projectId,
+              databaseId: databaseId,
+              auth: auth,
+            ),
         assert(projectId.isNotEmpty);
+
+  factory Firestore.useEmulator(
+    String projectId, {
+    String? databaseId,
+    FirebaseAuth? auth,
+  }) =>
+      Firestore(
+        projectId,
+        databaseId: databaseId,
+        auth: auth,
+        gateway: FirestoreGateway(
+          projectId,
+          databaseId: databaseId,
+          auth: auth,
+          useEmulator: true,
+        ),
+      );
 
   Reference reference(String path) => Reference.create(_gateway, path);
 
