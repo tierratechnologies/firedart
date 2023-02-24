@@ -59,7 +59,10 @@ class CollectionReference<T extends Object?> extends Reference {
   /// Constructs a [CollectionReference] using [FirestoreGateway] and path.
   ///
   /// Throws [Exception] if path contains odd amount of '/'.
-  CollectionReference(this.gateway, String path) : super(gateway, path) {
+  CollectionReference(
+    this.gateway,
+    String path,
+  ) : super(gateway, path) {
     if (fullPath.split('/').length % 2 == 1) {
       throw Exception('Path is not a collection: $path');
     }
@@ -124,7 +127,7 @@ class DocumentReference<T extends Object?> extends Reference {
     }
   }
 
-  CollectionReference collection(String id) {
+  CollectionReference<Map<String, dynamic>> collection(String id) {
     return CollectionReference(_gateway, '$path/$id');
   }
 
@@ -150,8 +153,11 @@ class DocumentReference<T extends Object?> extends Reference {
   }
 
   /// Create a document if it doesn't exist, otherwise throw exception.
-  Future<Document> create(Map<String, dynamic> map) => _gateway.createDocument(
-      fullPath.substring(0, fullPath.lastIndexOf('/')), id, _encodeMap(map));
+  Future<Document> create(
+    Map<String, dynamic> map,
+  ) =>
+      _gateway.createDocument(fullPath.substring(0, fullPath.lastIndexOf('/')),
+          id, _encodeMap(map));
 
   /// Create or update a document.
   /// In the case of an update, any fields not referenced in the payload will be deleted.
@@ -185,7 +191,8 @@ class Document {
   Map<String, dynamic> get map =>
       _rawDocument.fields.map((key, _) => MapEntry(key, this[key]));
 
-  DocumentReference get reference => DocumentReference(_gateway, path);
+  DocumentReference<Map<String, dynamic>> get reference =>
+      DocumentReference(_gateway, path);
 
   dynamic operator [](String key) {
     if (!_rawDocument.fields.containsKey(key)) return null;

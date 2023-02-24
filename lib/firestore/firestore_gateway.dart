@@ -293,6 +293,21 @@ class FirestoreGateway {
     return resp.writeResults;
   }
 
+  Future<List<WriteResult>> batchWrite(
+    List<Write> writes, [
+    Map<String, String>? labels,
+  ]) async {
+    var resp = await _client.batchWrite(
+      BatchWriteRequest(
+        database: database,
+        writes: writes,
+        labels: labels,
+      ),
+    );
+
+    return resp.writeResults;
+  }
+
   void _setupClient() {
     _listenRequestStreamMap.clear();
     _client = FirestoreClient(ClientChannel('firestore.googleapis.com'),

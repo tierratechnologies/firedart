@@ -39,8 +39,9 @@ class Firestore {
 
   Reference reference(String path) => Reference.create(_gateway, path);
 
-  CollectionReference collection(String path) =>
+  CollectionReference<Map<String, dynamic>> collection(String path) =>
       CollectionReference(_gateway, path);
 
-  DocumentReference document(String path) => DocumentReference(_gateway, path);
+  DocumentReference<Map<String, dynamic>> document(String path) =>
+      DocumentReference(_gateway, path);
 }
