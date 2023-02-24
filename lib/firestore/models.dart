@@ -106,7 +106,7 @@ class CollectionReference<T extends Object?> extends Reference {
   QueryReference limit(int count) => QueryReference(gateway, path).limit(count);
 
   DocumentReference<T> document(String id) =>
-      DocumentReference(_gateway, '$path/$id');
+      DocumentReference<T>(_gateway, '$path/$id');
 
   Future<Page<Document>> get(
           {int pageSize = 1024, String nextPageToken = ''}) =>
@@ -120,8 +120,10 @@ class CollectionReference<T extends Object?> extends Reference {
 }
 
 class DocumentReference<T extends Object?> extends Reference {
-  DocumentReference(FirestoreGateway gateway, String path)
-      : super(gateway, path) {
+  DocumentReference(
+    FirestoreGateway gateway,
+    String path,
+  ) : super(gateway, path) {
     if (fullPath.split('/').length % 2 == 0) {
       throw Exception('Path is not a document: $path');
     }
@@ -192,7 +194,7 @@ class Document {
       _rawDocument.fields.map((key, _) => MapEntry(key, this[key]));
 
   DocumentReference<Map<String, dynamic>> get reference =>
-      DocumentReference(_gateway, path);
+      DocumentReference<Map<String, dynamic>>(_gateway, path);
 
   dynamic operator [](String key) {
     if (!_rawDocument.fields.containsKey(key)) return null;

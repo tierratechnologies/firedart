@@ -136,6 +136,23 @@ Future main() async {
     await reference.delete();
   });
 
+  test('Read data from document\'s subcollection', () async {
+    var reference = firestore.collection('test').document('read_data');
+    await reference.set({'field': 'test'});
+
+    // create subcollection
+    var subColRef =
+        reference.collection('test_sub_col').document('read_data_sub');
+
+    await subColRef.set({'field': 'test'});
+
+    var map = await subColRef.get();
+    expect(map['field'], 'test');
+
+    // for tidy up in tearDown
+    docRefs.addAll([reference, subColRef]);
+  });
+
   test('Overwrite document', () async {
     var reference = firestore.collection('test').document('overwrite');
     await reference.set({'field1': 'test1', 'field2': 'test1'});
@@ -195,6 +212,7 @@ Future main() async {
       'map': {'int': 1, 'string': 'text'},
     });
     var doc = await reference.get();
+
     expect(doc['null'], null);
     expect(doc['bool'], true);
     expect(doc['int'], 1);
@@ -202,10 +220,18 @@ Future main() async {
     expect(doc['timestamp'], dateTime);
     expect(doc['bytes'], utf8.encode('byte array'));
     expect(doc['string'], 'text');
-    expect(doc['reference'], reference);
+    expect(
+        doc['reference'],
+        allOf(
+          isA<DocumentReference<Map<String, dynamic>>>(),
+          equals(reference),
+          equals(doc.reference),
+        ));
     expect(doc['coordinates'], geoPoint);
     expect(doc['list'], [1, 'text']);
     expect(doc['map'], {'int': 1, 'string': 'text'});
+
+    docRefs.add(reference);
   });
 
   test('Refresh token when expired', () async {
