@@ -48,16 +48,30 @@ class UserGateway {
   }
 
   Future<Map<String, dynamic>> _post<T>(
-      String method, Map<String, String> body) async {
+    String method,
+    Map<String, String> body, {
+    String? apiKey,
+  }) async {
     // var requestUrl =
     //     'https://identitytoolkit.googleapis.com/v1/accounts:$method';
 
-    var requestUrl = !useEmulator
-        ? '$AUTH_HOST_URI:$method'
-        : '${AUTH_EMULATOR_HOST_URI.replaceFirst('{{project_id}}', projectId!)}:$method';
+    // var requestUrl = !useEmulator
+    //     ? '$AUTH_HOST_URI:$method'
+    //     : '${AUTH_EMULATOR_HOST_URI.replaceFirst('{{project_id}}', projectId!)}:$method';
+
+    var queryParams = <String, dynamic>{};
+    if (apiKey != null) {
+      queryParams.addAll({'key': apiKey});
+    }
+
+    var uri = Uri.https(
+      AUTH_HOST_URI_AUTHORITY,
+      '$AUTH_HOST_URI_PATH:$method',
+      queryParams,
+    );
 
     var response = await _client.post(
-      Uri.parse(requestUrl),
+      uri,
       body: body,
     );
 

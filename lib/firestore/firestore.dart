@@ -1,7 +1,12 @@
 import 'package:firedart/auth/firebase_auth.dart';
+import 'package:firedart/generated/google/firestore/v1/common.pb.dart';
 
 import 'firestore_gateway.dart';
 import 'models.dart';
+
+typedef TransactionHandler = Future<dynamic> Function(
+  Transaction tx,
+);
 
 class Firestore {
   /* Singleton interface */
@@ -48,6 +53,7 @@ class Firestore {
             ),
         assert(projectId.isNotEmpty);
 
+  @Deprecated('Not currently supported')
   factory Firestore.useEmulator(
     String projectId, {
     String? databaseId,
@@ -72,4 +78,18 @@ class Firestore {
 
   DocumentReference<Map<String, dynamic>> document(String path) =>
       DocumentReference(_gateway, path);
+
+  Future<dynamic> runTransaction(
+    TransactionHandler transactionHandler,
+  ) async {
+    var txn = await _gateway.beginTransaction(
+      TransactionOptions(
+        readWrite: TransactionOptions_ReadWrite.create(),
+      ),
+    );
+
+    var output = await transactionHandler(txn);
+
+    return output;
+  }
 }

@@ -36,7 +36,11 @@ class AuthGateway {
         },
       );
 
-  Future<User> signInAnonymously() async => _auth('signUp', {});
+  Future<User> signInAnonymously(String apiKey) async => _auth(
+        'signUp',
+        {},
+        apiKey: apiKey,
+      );
 
   Future<void> resetPassword(String email) => _post(
         'sendOobCode',
@@ -46,30 +50,48 @@ class AuthGateway {
         },
       );
 
-  Future<User> _auth(String method, Map<String, String> payload) async {
+  Future<User> _auth(
+    String method,
+    Map<String, String> payload, {
+    String? apiKey,
+  }) async {
     var body = {
       ...payload,
       'returnSecureToken': 'true',
     };
 
-    var map = await _post(method, body);
+    var map = await _post(method, body, apiKey: apiKey);
     tokenProvider.setToken(map);
     return User.fromMap(map);
   }
 
   Future<Map<String, dynamic>> _post(
     String method,
-    Map<String, String> body,
-  ) async {
+    Map<String, String> body, {
+    String? apiKey,
+  }) async {
     // var requestUrl =
     //     'https://identitytoolkit.googleapis.com/v1/accounts:$method';
 
-    var requestUrl = !useEmulator
-        ? '$AUTH_HOST_URI/accounts:$method'
-        : '${AUTH_EMULATOR_HOST_URI.replaceFirst('{{project_id}}', projectId!)}/accounts:$method';
+    // var requestUrl = !useEmulator
+    //     ? '$AUTH_HOST_URI/accounts:$method'
+    //     : '${AUTH_EMULATOR_HOST_URI.replaceFirst('{{project_id}}', projectId!)}/accounts:$method';
+
+    // var uri = Uri.parse(requestUrl);
+
+    var queryParams = <String, dynamic>{};
+    if (apiKey != null) {
+      queryParams.addAll({'key': apiKey});
+    }
+
+    var uri = Uri.https(
+      AUTH_HOST_URI_AUTHORITY,
+      '$AUTH_HOST_URI_PATH:$method',
+      queryParams,
+    );
 
     var response = await client.post(
-      Uri.parse(requestUrl),
+      uri,
       body: body,
     );
 

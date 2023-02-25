@@ -1,13 +1,23 @@
 import 'dart:collection';
 
+import 'package:collection/collection.dart';
+import 'package:firedart/firedart.dart';
+import 'package:firedart/generated/google/firestore/v1/firestore.pbgrpc.dart';
+import 'package:grpc/grpc.dart';
 import 'package:firedart/generated/google/firestore/v1/document.pb.dart' as fs;
 import 'package:firedart/generated/google/firestore/v1/query.pb.dart';
 import 'package:firedart/generated/google/protobuf/wrappers.pb.dart';
 import 'package:firedart/generated/google/type/latlng.pb.dart';
-import 'package:grpc/grpc.dart';
 
+import '../generated/google/firestore/v1/write.pb.dart';
 import 'firestore_gateway.dart';
 import 'type_util.dart';
+
+/// The types of field paths supported.
+enum FieldPathType {
+  /// Document ID.
+  documentId,
+}
 
 abstract class Reference {
   final FirestoreGateway _gateway;
@@ -105,8 +115,8 @@ class CollectionReference<T extends Object?> extends Reference {
   /// to the specified number of documents.
   QueryReference limit(int count) => QueryReference(gateway, path).limit(count);
 
-  DocumentReference<T> document(String id) =>
-      DocumentReference<T>(_gateway, '$path/$id');
+  DocumentReference document(String id) =>
+      DocumentReference<Map<String, dynamic>>(_gateway, '$path/$id');
 
   Future<Page<Document>> get(
           {int pageSize = 1024, String nextPageToken = ''}) =>
@@ -398,4 +408,155 @@ class QueryReference extends Reference {
   }
 }
 
-typedef Transaction = List<int>;
+// typedef Transaction = List<int>;
+
+/// Honors the inteface for cloud_firestore
+abstract class ITransaction {
+  /// Reads the document referenced by the provided [DocumentReference].
+  ///
+  /// If the document changes whilst the transaction is in progress, it will
+  /// be re-tried up to five times.
+  ITransaction get();
+
+  /// Deletes the document referred to by the provided [documentReference].
+  ITransaction delete();
+
+  /// Updates fields in the document referred to by [documentReference].
+  /// The update will fail if applied to a document that does not exist.
+  ITransaction update();
+
+  /// Writes to the document referred to by the provided [DocumentReference].
+  /// If the document does not exist yet, it will be created. If you pass
+  /// [SetOptions], the provided data can be merged into the existing document.
+  ITransaction set();
+}
+
+/// Adds [Write]'s to list which is then commited
+class Transaction {
+  final List<int> id;
+  final _writes = <Write>[];
+  final FirestoreGateway _delegate;
+
+  Transaction._(this.id, this._delegate);
+
+  factory Transaction.fromBeginTransactionResponse(
+    BeginTransactionResponse resp,
+    FirestoreGateway delegate,
+  ) =>
+      Transaction._(
+        resp.transaction,
+        delegate,
+      );
+
+  /// Adds to Write list
+  Transaction get<T extends Object?>(
+    DocumentReference<T> documentReference,
+  ) =>
+      _delegate.getDocument(documentReference, txn: id);
+
+  Transaction delete(DocumentReference documentReference) {
+    throw UnimplementedError('Not yet implemented');
+  }
+
+  Transaction update(
+    DocumentReference documentReference,
+    Map<String, dynamic> data,
+  ) {
+    throw UnimplementedError('Not yet implemented');
+  }
+
+  Transaction set<T>(
+    DocumentReference<T> documentReference,
+    T data, [
+    SetOptions? options,
+  ]) {
+    throw UnimplementedError('Not yet implemented');
+  }
+}
+
+/// An options class that configures the behavior of set() calls in [DocumentReference],
+/// [WriteBatch] and [Transaction].
+class SetOptions {
+  /// Creates a [SetOptions] instance.
+  SetOptions({
+    this.merge,
+    List<Object>? mergeFields,
+  })  : assert(
+          (merge != null) ^ (mergeFields != null),
+          "options must provide either 'merge' or 'mergeFields'",
+        ),
+        mergeFields = mergeFields?.map((field) {
+          assert(
+            field is String || field is FieldPath,
+            '[mergeFields] can only contain Strings or FieldPaths but got $field',
+          );
+
+          if (field is String) return FieldPath.fromString(field);
+          return field as FieldPath;
+        }).toList(growable: false);
+
+  /// Changes the behavior of a set() call to only replace the values specified
+  /// in its data argument.
+  ///
+  /// Fields omitted from the set() call remain untouched.
+  final bool? merge;
+
+  /// Changes the behavior of set() calls to only replace the specified field paths.
+  ///
+  /// Any field path that is not specified is ignored and remains untouched.
+  final List<FieldPath>? mergeFields;
+}
+
+String _reserved = "Paths must not contain '~', '*', '/', '[', or ']'.";
+
+/// A [FieldPath] refers to a field in a document.
+///
+/// Usage of a [FieldPath] allows querying of Firestore paths whose document ID
+/// contains a '.'.
+// @immutable
+class FieldPath {
+  /// The [List] of components which make up this [FieldPath].
+  final List<String> components;
+
+  /// Creates a new [FieldPath].
+  FieldPath(this.components)
+      : assert(components.isNotEmpty),
+        assert(components.where((component) => component.isEmpty).isEmpty,
+            'Expected all FieldPath components to be non-null or non-empty strings.');
+
+  /// Returns a special sentinel `FieldPath` to refer to the ID of a document.
+  ///
+  /// It can be used in queries to sort or filter by the document ID.
+  static FieldPathType get documentId {
+    return FieldPathType.documentId;
+  }
+
+  /// Creates a new [FieldPath] from a string path.
+  ///
+  /// The [FieldPath] will created by splitting the given path by the
+  /// '.' character. If you are trying to match a Firestore field whose
+  /// field contains a '.', construct a new [FieldPath] instance and provide
+  /// the field as a [List] element.
+  FieldPath.fromString(String path)
+      : components = path.split('.'),
+        assert(path.isNotEmpty),
+        assert(!path.startsWith('.')),
+        assert(!path.endsWith('.')),
+        assert(!path.contains('..')),
+        assert(!path.contains('~'), _reserved),
+        assert(!path.contains('*'), _reserved),
+        assert(!path.contains('/'), _reserved),
+        assert(!path.contains('['), _reserved),
+        assert(!path.contains(']'), _reserved);
+
+  @override
+  bool operator ==(Object other) =>
+      other is FieldPath &&
+      const ListEquality().equals(other.components, components);
+
+  @override
+  int get hashCode => Object.hashAll(components);
+
+  @override
+  String toString() => 'FieldPath($components)';
+}

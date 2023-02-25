@@ -70,6 +70,7 @@ class FirebaseAuth {
     );
   }
 
+  @Deprecated('Not currently supported')
   factory FirebaseAuth.useEmulator(
     String apiKey,
     TokenStore tokenStore, {
@@ -99,7 +100,7 @@ class FirebaseAuth {
   Future<User> signIn(String email, String password) =>
       _authGateway.signIn(email, password);
 
-  Future<User> signInAnonymously() => _authGateway.signInAnonymously();
+  Future<User> signInAnonymously() => _authGateway.signInAnonymously(apiKey);
 
   void signOut() => tokenProvider.signOut();
 

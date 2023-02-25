@@ -1,7 +1,8 @@
 const FIRESTORE_HOST_URI = 'firestore.googleapis.com';
 const FIRESTORE_HOST_PORT = 443;
 
-const AUTH_HOST_URI = 'https://identitytoolkit.googleapis.com/v1';
+const AUTH_HOST_URI_AUTHORITY = 'identitytoolkit.googleapis.com';
+const AUTH_HOST_URI_PATH = 'v1/accounts';
 
 const EMULATORS_HOST_URI = 'localhost';
 const FIRESTORE_EMULATOR_HOST_PORT = 8080;

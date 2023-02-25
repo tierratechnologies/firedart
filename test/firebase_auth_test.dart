@@ -1,4 +1,5 @@
 import 'package:firedart/auth/exceptions.dart';
+import 'package:firedart/auth/user_gateway.dart';
 import 'package:firedart/firedart.dart';
 import 'package:test/test.dart';
 
@@ -27,7 +28,9 @@ Future main() async {
 
   test('Sign In Anonymously', () async {
     expect(auth.isSignedIn, false);
-    await auth.signInAnonymously();
+    var u = await auth.signInAnonymously();
+    expect(u, isA<User>());
+
     expect(auth.isSignedIn, true);
     await auth.deleteAccount();
     expect(auth.isSignedIn, false);

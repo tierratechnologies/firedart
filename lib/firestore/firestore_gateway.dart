@@ -185,10 +185,12 @@ class FirestoreGateway {
     Transaction? txn,
   }) async {
     var rawDocument = await _client
-        .getDocument(GetDocumentRequest(
-          name: path,
-          transaction: txn,
-        ))
+        .getDocument(
+          GetDocumentRequest(
+            name: path,
+            transaction: txn?.id,
+          ),
+        )
         .catchError(_handleError);
 
     return Document(this, rawDocument);
@@ -227,16 +229,24 @@ class FirestoreGateway {
       return _mapDocumentStream(_listenRequestStreamMap[path]!);
     }
 
-    final documentsTarget = Target_DocumentsTarget()..documents.add(path);
+    final documentsTarget = Target_DocumentsTarget(
+      documents: [path],
+    );
 
-    final target = Target()..documents = documentsTarget;
+    final target = Target(
+      documents: documentsTarget,
+    );
 
-    final request = ListenRequest()
-      ..database = database
-      ..addTarget = target;
+    final request = ListenRequest(
+      database: database,
+      addTarget: target,
+    );
 
     final listenRequestStream = _FirestoreGatewayStreamCache(
-        onDone: _handleDone, userInfo: path, onError: _handleError);
+      onDone: _handleDone,
+      userInfo: path,
+      onError: _handleError,
+    );
 
     _listenRequestStreamMap[path] = listenRequestStream;
 
@@ -273,7 +283,7 @@ class FirestoreGateway {
         options: options,
       ),
     );
-    return resp.transaction;
+    return Transaction.fromBeginTransactionResponse(resp, this);
   }
 
   Future<List<WriteResult>> commit({
@@ -284,7 +294,7 @@ class FirestoreGateway {
     var resp = await _client.commit(
       CommitRequest(
         database: database,
-        transaction: txn,
+        transaction: txn.id,
         writes: writes,
       ),
       options: callOptions,
