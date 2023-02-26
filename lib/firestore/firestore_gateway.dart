@@ -1,11 +1,13 @@
 import 'dart:async';
 
+import 'package:firedart/firedart.dart';
 import 'package:firedart/generated/google/firestore/v1/write.pb.dart';
 import 'package:grpc/grpc.dart';
 import 'package:firedart/generated/google/firestore/v1/common.pb.dart';
 import 'package:firedart/generated/google/firestore/v1/document.pb.dart' as fs;
 import 'package:firedart/generated/google/firestore/v1/firestore.pbgrpc.dart';
 import 'package:firedart/generated/google/firestore/v1/query.pb.dart';
+import 'package:retry/retry.dart';
 
 import '../auth/firebase_auth.dart';
 import '../constants.dart';
@@ -283,26 +285,72 @@ class FirestoreGateway {
         options: options,
       ),
     );
+
     return Transaction.fromBeginTransactionResponse(resp, this);
   }
 
   Future<List<WriteResult>> commit({
     required Transaction txn,
-    required Iterable<Write> writes,
     CallOptions? callOptions,
   }) async {
     var resp = await _client.commit(
       CommitRequest(
         database: database,
         transaction: txn.id,
-        writes: writes,
+        writes: txn.writes,
       ),
       options: callOptions,
     );
 
-    // if(resp.writeResults)
-
     return resp.writeResults;
+  }
+
+  /// Perform a Transaction for a group of actions
+  /// encapsulated within a [TransactionHander]
+  Future<T> runTransaction<T>(
+    TransactionHandler<T> transactionHandler, {
+    Duration timeout = const Duration(seconds: 30),
+    int maxAttempts = 5,
+  }) async {
+    return retry<T>(
+      () async {
+        var txn, output, writeResults;
+        try {
+          txn = await beginTransaction(
+            TransactionOptions(
+              readWrite: TransactionOptions_ReadWrite.create(),
+            ),
+          );
+
+          // run handler, which populates the Writes on the Txn
+          output = await transactionHandler(txn);
+
+          // commit txn
+          writeResults = await commit(txn: txn);
+
+          return output;
+        } catch (e) {
+          // assume failed txn if NO writeResult
+          if (txn != null && writeResults == null) {
+            await rollback(txn: txn);
+          }
+          rethrow;
+        }
+      },
+      maxAttempts: maxAttempts,
+      maxDelay: timeout,
+    );
+  }
+
+  Future rollback({
+    Transaction? txn,
+  }) async {
+    await _client.rollback(
+      RollbackRequest(
+        database: database,
+        transaction: txn?.id,
+      ),
+    );
   }
 
   Future<List<WriteResult>> batchWrite(

@@ -4,7 +4,7 @@ import 'package:firedart/generated/google/firestore/v1/common.pb.dart';
 import 'firestore_gateway.dart';
 import 'models.dart';
 
-typedef TransactionHandler = Future<dynamic> Function(
+typedef TransactionHandler<T> = Future<T> Function(
   Transaction tx,
 );
 

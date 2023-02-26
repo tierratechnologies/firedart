@@ -2,6 +2,7 @@ import 'dart:collection';
 
 import 'package:collection/collection.dart';
 import 'package:firedart/firedart.dart';
+import 'package:firedart/generated/google/firestore/v1/common.pb.dart';
 import 'package:firedart/generated/google/firestore/v1/firestore.pbgrpc.dart';
 import 'package:grpc/grpc.dart';
 import 'package:firedart/generated/google/firestore/v1/document.pb.dart' as fs;
@@ -421,7 +422,7 @@ abstract class ITransaction {
   /// Deletes the document referred to by the provided [documentReference].
   ITransaction delete();
 
-  /// Updates fields in the document referred to by [documentReference].
+  /// Updates fields in the document referred to by [document].
   /// The update will fail if applied to a document that does not exist.
   ITransaction update();
 
@@ -431,11 +432,15 @@ abstract class ITransaction {
   ITransaction set();
 }
 
+/// Transaction class which is created from call to [runTransaction]
+///
 /// Adds [Write]'s to list which is then commited
 class Transaction {
   final List<int> id;
   final _writes = <Write>[];
   final FirestoreGateway _delegate;
+
+  List<Write> get writes => _writes;
 
   Transaction._(this.id, this._delegate);
 
@@ -449,20 +454,39 @@ class Transaction {
       );
 
   /// Adds to Write list
-  Transaction get<T extends Object?>(
+  Future<Document> get<T extends Object?>(
     DocumentReference<T> documentReference,
   ) =>
-      _delegate.getDocument(documentReference, txn: id);
+      _delegate.getDocument(documentReference, txn: this);
 
   Transaction delete(DocumentReference documentReference) {
-    throw UnimplementedError('Not yet implemented');
+    final write = Write(
+      delete: documentReference.fullPath,
+      currentDocument: Precondition(exists: true),
+    );
+
+    _writes.add(write);
+
+    return this;
   }
 
   Transaction update(
-    DocumentReference documentReference,
+    Document document,
     Map<String, dynamic> data,
   ) {
-    throw UnimplementedError('Not yet implemented');
+    final write = Write(
+      update: document._rawDocument,
+      // TODO updateMask:
+      // TODO updateTransforms:
+      currentDocument: Precondition(
+        exists: true,
+        updateTime: document._rawDocument.updateTime,
+      ),
+    );
+
+    _writes.add(write);
+
+    return this;
   }
 
   Transaction set<T>(
