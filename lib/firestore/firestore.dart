@@ -79,17 +79,14 @@ class Firestore {
   DocumentReference<Map<String, dynamic>> document(String path) =>
       DocumentReference(_gateway, path);
 
-  Future<dynamic> runTransaction(
-    TransactionHandler transactionHandler,
-  ) async {
-    var txn = await _gateway.beginTransaction(
-      TransactionOptions(
-        readWrite: TransactionOptions_ReadWrite.create(),
-      ),
-    );
-
-    var output = await transactionHandler(txn);
-
-    return output;
-  }
+  Future<T> runTransaction<T>(
+    TransactionHandler<T> transactionHandler, {
+    Duration timeout = const Duration(seconds: 30),
+    int maxAttempts = 5,
+  }) =>
+      _gateway.runTransaction<T>(
+        transactionHandler,
+        timeout: timeout,
+        maxAttempts: maxAttempts,
+      );
 }
