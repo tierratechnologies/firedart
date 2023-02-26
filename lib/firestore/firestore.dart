@@ -32,7 +32,9 @@ class Firestore {
   static Firestore get instance {
     if (_instance == null) {
       throw Exception(
-          "Firestore hasn't been initialized. Please call Firestore.initialize() before using it.");
+        'Firestore hasn\'t been initialized. '
+        'Please call Firestore.initialize() before using it.',
+      );
     }
     return _instance!;
   }
